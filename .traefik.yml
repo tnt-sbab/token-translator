@@ -1,0 +1,6 @@
+displayName: JWT token translator
+summary: 'Translates an Authorization Bearer access token header or GOTOKEN cookie to the corresponding JWT'
+type: middleware
+import: github.com/tnt-sbab/token-translator
+testData:
+  LookupPath: 'https://k8sproxy.sys.sbab.se/partner-auth-service/v1/auth/usertoken?access_token=%s'

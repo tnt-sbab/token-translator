@@ -13,30 +13,32 @@ import (
 )
 
 type Config struct {
-	LookupPath string
+	TokenUrl string
 }
 
 func CreateConfig() *Config {
 	return &Config{
-		LookupPath: "",
+		TokenUrl: "",
 	}
 }
 
 type TokenTranslator struct {
-	next       http.Handler
-	lookupPath string
-	name       string
+	next     http.Handler
+	tokenUrl string
+	name     string
 }
 
 func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
-	if len(config.LookupPath) == 0 {
-		return nil, errors.New("LookupPath cannot be empty")
+	if len(config.TokenUrl) == 0 {
+		return nil, errors.New("TokenUrl cannot be empty")
+	} else if !strings.Contains(config.TokenUrl, "%s") {
+		return nil, errors.New("TokenUrl must contain '%s'")
 	}
 	log.SetOutput(os.Stdout)
 	return &TokenTranslator{
-		next:       next,
-		lookupPath: config.LookupPath,
-		name:       name,
+		next:     next,
+		tokenUrl: config.TokenUrl,
+		name:     name,
 	}, nil
 }
 
@@ -47,7 +49,7 @@ func (t *TokenTranslator) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 	if len(authorization) == 36 {
 		req.Header.Set("accessToken", authorization)
-		jwt, err := fetchUserToken(t.lookupPath, authorization)
+		jwt, err := fetchUserToken(t.tokenUrl, authorization)
 		if err != nil {
 			log.Println("failed fetching jwt token:", err)
 			http.Error(rw, "Not allowed", http.StatusForbidden)
@@ -75,12 +77,12 @@ func extractAuthorization(req *http.Request) (string, error) {
 	return authorization, nil
 }
 
-func fetchUserToken(lookupPath string, accessToken string) (string, error) {
+func fetchUserToken(lookupUrl string, accessToken string) (string, error) {
 	var jwt string
 	if !IsValidUUID(accessToken) {
 		return jwt, errors.New("invalid UUID format")
 	}
-	tokenUrl := fmt.Sprintf(lookupPath, accessToken)
+	tokenUrl := fmt.Sprintf(lookupUrl, accessToken)
 	res, err := http.Get(tokenUrl)
 	if err != nil {
 		return jwt, err

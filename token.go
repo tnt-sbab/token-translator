@@ -77,8 +77,11 @@ func extractAuthorization(req *http.Request) (string, error) {
 
 func fetchUserToken(lookupPath string, accessToken string) (string, error) {
 	var jwt string
-	url := fmt.Sprintf(lookupPath, accessToken)
-	res, err := http.Get(url)
+	if !IsValidUUID(accessToken) {
+		return jwt, errors.New("invalid UUID format")
+	}
+	tokenUrl := fmt.Sprintf(lookupPath, accessToken)
+	res, err := http.Get(tokenUrl)
 	if err != nil {
 		return jwt, err
 	}
@@ -100,4 +103,16 @@ func fetchUserToken(lookupPath string, accessToken string) (string, error) {
 type UserTokenResponse struct {
 	Token   string `json:"token,omitempty"`
 	Message string `json:"message,omitempty"`
+}
+
+func IsValidUUID(s string) bool {
+	if len(s) != 36 || s[8] != '-' || s[13] != '-' || s[18] != '-' || s[23] != '-' {
+		return false
+	}
+	for _, c := range strings.ToLower(s[:8] + s[9:13] + s[14:18] + s[19:23] + s[24:]) {
+		if c < '0' || (c > '9' && c < 'a') || c > 'f' {
+			return false
+		}
+	}
+	return true
 }

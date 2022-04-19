@@ -16,16 +16,21 @@ type Config struct {
 	TokenUrl string
 }
 
-func CreateConfig() *Config {
-	return &Config{
-		TokenUrl: "",
-	}
+type UserTokenResponse struct {
+	Token   string `json:"token,omitempty"`
+	Message string `json:"message,omitempty"`
 }
 
 type TokenTranslator struct {
 	next     http.Handler
 	tokenUrl string
 	name     string
+}
+
+func CreateConfig() *Config {
+	return &Config{
+		TokenUrl: "",
+	}
 }
 
 func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
@@ -100,11 +105,6 @@ func fetchUserToken(lookupUrl string, accessToken string) (string, error) {
 		return jwt, errors.New(userTokenResponse.Message)
 	}
 	return userTokenResponse.Token, nil
-}
-
-type UserTokenResponse struct {
-	Token   string `json:"token,omitempty"`
-	Message string `json:"message,omitempty"`
 }
 
 func IsValidUUID(s string) bool {

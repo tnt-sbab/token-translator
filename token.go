@@ -83,28 +83,34 @@ func extractAuthorization(req *http.Request) (string, error) {
 }
 
 func fetchUserToken(lookupUrl string, accessToken string) (string, error) {
-	var jwt string
 	if !IsValidUUID(accessToken) {
-		return jwt, errors.New("invalid UUID format")
+		return "", errors.New("invalid UUID format")
 	}
 	tokenUrl := fmt.Sprintf(lookupUrl, accessToken)
 	res, err := http.Get(tokenUrl)
 	if err != nil {
-		return jwt, err
+		return "", err
 	}
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return jwt, err
+		return "", err
 	}
+	return ParseTokenResponse(body)
+}
+
+func ParseTokenResponse(body []byte) (string, error) {
 	var userTokenResponse UserTokenResponse
-	err = json.Unmarshal(body, &userTokenResponse)
+	err := json.Unmarshal(body, &userTokenResponse)
 	if err != nil {
-		return jwt, err
+		return "", err
 	}
 	if len(userTokenResponse.Message) > 0 {
-		return jwt, errors.New(userTokenResponse.Message)
+		return "", errors.New(userTokenResponse.Message)
+	} else if len(userTokenResponse.Token) == 0 {
+		return "", errors.New("empty token response")
+	} else {
+		return userTokenResponse.Token, nil
 	}
-	return userTokenResponse.Token, nil
 }
 
 func IsValidUUID(s string) bool {

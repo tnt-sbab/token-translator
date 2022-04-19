@@ -34,3 +34,30 @@ func TestIsValidUUID(t *testing.T) {
 		}
 	}
 }
+
+func TestParseTokenResponse(t *testing.T) {
+	table := []struct {
+		json string
+		jwt  string
+		err  string
+	}{
+		{`{"token": "a.b.c"}`, "a.b.c", ""},
+		{`{"token": "a.b.c", "message": "this is a custom error"}`, "", "this is a custom error"},
+		{`{"message": "this is a custom error"}`, "", "this is a custom error"},
+		{`{"message": ""}`, "", "empty token response"},
+		{`{"token": ""}`, "", "empty token response"},
+		{`{}`, "", "empty token response"},
+		{`{"unexpected": "property"}`, "", "empty token response"},
+		{`{blabla`, "", "invalid character 'b' looking for beginning of object key string"},
+		{``, "", "unexpected end of JSON input"},
+	}
+	for _, row := range table {
+		jwt, err := ParseTokenResponse([]byte(row.json))
+		if jwt != row.jwt {
+			t.Errorf("JSON %s should be parsed to jwt '%s' but was '%s'", row.json, row.jwt, jwt)
+		}
+		if err != nil && err.Error() != row.err {
+			t.Errorf("Expected JSON '%s' to generate error '%v' but was '%v'", row.json, row.err, err)
+		}
+	}
+}

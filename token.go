@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 )
 
 type Config struct {
@@ -22,9 +23,10 @@ type UserTokenResponse struct {
 }
 
 type TokenTranslator struct {
+	name     string
 	next     http.Handler
 	tokenUrl string
-	name     string
+	client   http.Client
 }
 
 func CreateConfig() *Config {
@@ -41,10 +43,24 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 	}
 	log.SetOutput(os.Stdout)
 	return &TokenTranslator{
+		name:     name,
 		next:     next,
 		tokenUrl: config.TokenUrl,
-		name:     name,
+		client:   httpClient(),
 	}, nil
+}
+
+func httpClient() http.Client {
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.MaxIdleConns = 100
+	transport.MaxConnsPerHost = 100
+	transport.MaxIdleConnsPerHost = 100
+
+	client := http.Client{
+		Timeout:   10 * time.Second,
+		Transport: transport,
+	}
+	return client
 }
 
 func (t *TokenTranslator) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
@@ -54,7 +70,7 @@ func (t *TokenTranslator) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 	if len(authorization) == 36 {
 		req.Header.Set("accessToken", authorization)
-		jwt, err := fetchUserToken(t.tokenUrl, authorization)
+		jwt, err := fetchUserToken(t.client, t.tokenUrl, authorization)
 		if err != nil {
 			log.Println("failed fetching jwt token:", err)
 			http.Error(rw, "Not allowed", http.StatusForbidden)
@@ -85,15 +101,16 @@ func ExtractAuthorization(req *http.Request) (string, error) {
 	return authorization, nil
 }
 
-func fetchUserToken(lookupUrl string, accessToken string) (string, error) {
+func fetchUserToken(client http.Client, lookupUrl string, accessToken string) (string, error) {
 	if !IsValidUUID(accessToken) {
 		return "", errors.New("invalid UUID format")
 	}
 	tokenUrl := fmt.Sprintf(lookupUrl, accessToken)
-	res, err := http.Get(tokenUrl)
+	res, err := client.Get(tokenUrl)
 	if err != nil {
 		return "", err
 	}
+	defer res.Body.Close()
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return "", err

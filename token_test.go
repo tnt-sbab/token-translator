@@ -64,21 +64,21 @@ func TestParseTokenResponse(t *testing.T) {
 }
 
 func TestExtractAuthorization(t *testing.T) {
-	emptyReq, _ := http.NewRequest("GET", "/api/test", nil)
-	doubleAuth := createRequest("Authorization", "Bearer 1f8a367e-9b24-4a9b-a739-7fc539fbebaa")
-	doubleAuth.Header.Add("Cookie", "GWTOKEN=034821a2-6318-48f0-a0d5-b130104c63d1")
 	tests := []struct {
 		req           *http.Request
 		authorization string
 	}{
-		{createRequest("Authorization", "Bearer 1"), "1"},
-		{createRequest("Authorization", "Bearer 034821a2-6318-48f0-a0d5-b130104c63d1"), "034821a2-6318-48f0-a0d5-b130104c63d1"},
-		{createRequest("Authorization", "034821a2-6318-48f0-a0d5-b130104c63d1"), "034821a2-6318-48f0-a0d5-b130104c63d1"},
-		{createRequest("Authorization", "2"), "2"},
-		{createRequest("Cookie", "GWTOKEN=034821a2-6318-48f0-a0d5-b130104c63d1"), "034821a2-6318-48f0-a0d5-b130104c63d1"},
-		{createRequest("AnotherHeader", "034821a2-6318-48f0-a0d5-b130104c63d1"), ""},
-		{doubleAuth, "1f8a367e-9b24-4a9b-a739-7fc539fbebaa"}, // Authorization header over GWTOKEN Cookie value
-		{emptyReq, ""},
+		{createRequest(httpHeader{"Authorization", "Bearer 1"}), "1"},
+		{createRequest(httpHeader{"Authorization", "Bearer 034821a2-6318-48f0-a0d5-b130104c63d1"}), "034821a2-6318-48f0-a0d5-b130104c63d1"},
+		{createRequest(httpHeader{"Authorization", "034821a2-6318-48f0-a0d5-b130104c63d1"}), "034821a2-6318-48f0-a0d5-b130104c63d1"},
+		{createRequest(httpHeader{"Authorization", "2"}), "2"},
+		{createRequest(httpHeader{"Cookie", "GWTOKEN=034821a2-6318-48f0-a0d5-b130104c63d1"}), "034821a2-6318-48f0-a0d5-b130104c63d1"},
+		{createRequest(httpHeader{"AnotherHeader", "034821a2-6318-48f0-a0d5-b130104c63d1"}), ""},
+		{createRequest(
+			httpHeader{"Authorization", "Bearer 1f8a367e-9b24-4a9b-a739-7fc539fbebaa"},
+			httpHeader{"Cookie", "GWTOKEN=034821a2-6318-48f0-a0d5-b130104c63d1"},
+		), "1f8a367e-9b24-4a9b-a739-7fc539fbebaa"}, // Authorization header over GWTOKEN Cookie value
+		{createRequest(), ""},
 	}
 	for _, row := range tests {
 		authorization, _ := ExtractAuthorization(row.req)
@@ -86,10 +86,18 @@ func TestExtractAuthorization(t *testing.T) {
 			t.Errorf("Extected request to generate authorization '%s' but was '%s'", row.authorization, authorization)
 		}
 	}
+
 }
 
-func createRequest(headerKey string, headerValue string) *http.Request {
+type httpHeader struct {
+	key   string
+	value string
+}
+
+func createRequest(headers ...httpHeader) *http.Request {
 	req, _ := http.NewRequest("GET", "/api/test", nil)
-	req.Header.Add(headerKey, headerValue)
+	for _, header := range headers {
+		req.Header.Add(header.key, header.value)
+	}
 	return req
 }

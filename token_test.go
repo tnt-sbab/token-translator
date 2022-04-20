@@ -1,11 +1,12 @@
 package token_translator
 
 import (
+	"net/http"
 	"testing"
 )
 
 func TestIsValidUUID(t *testing.T) {
-	table := []struct {
+	tests := []struct {
 		uuid  string
 		valid bool
 	}{
@@ -27,7 +28,7 @@ func TestIsValidUUID(t *testing.T) {
 		{"", false}, // empty
 	}
 
-	for _, row := range table {
+	for _, row := range tests {
 		valid := IsValidUUID(row.uuid)
 		if valid != row.valid {
 			t.Errorf("Token %s should result in %t", row.uuid, row.valid)
@@ -36,7 +37,7 @@ func TestIsValidUUID(t *testing.T) {
 }
 
 func TestParseTokenResponse(t *testing.T) {
-	table := []struct {
+	tests := []struct {
 		json string
 		jwt  string
 		err  string
@@ -51,7 +52,7 @@ func TestParseTokenResponse(t *testing.T) {
 		{`{blabla`, "", "invalid character 'b' looking for beginning of object key string"},
 		{``, "", "unexpected end of JSON input"},
 	}
-	for _, row := range table {
+	for _, row := range tests {
 		jwt, err := ParseTokenResponse([]byte(row.json))
 		if jwt != row.jwt {
 			t.Errorf("JSON %s should be parsed to jwt '%s' but was '%s'", row.json, row.jwt, jwt)
@@ -60,4 +61,35 @@ func TestParseTokenResponse(t *testing.T) {
 			t.Errorf("Expected JSON '%s' to generate error '%v' but was '%v'", row.json, row.err, err)
 		}
 	}
+}
+
+func TestExtractAuthorization(t *testing.T) {
+	emptyReq, _ := http.NewRequest("GET", "/api/test", nil)
+	doubleAuth := createRequest("Authorization", "Bearer 1f8a367e-9b24-4a9b-a739-7fc539fbebaa")
+	doubleAuth.Header.Add("Cookie", "GWTOKEN=034821a2-6318-48f0-a0d5-b130104c63d1")
+	tests := []struct {
+		req           *http.Request
+		authorization string
+	}{
+		{createRequest("Authorization", "Bearer 1"), "1"},
+		{createRequest("Authorization", "Bearer 034821a2-6318-48f0-a0d5-b130104c63d1"), "034821a2-6318-48f0-a0d5-b130104c63d1"},
+		{createRequest("Authorization", "034821a2-6318-48f0-a0d5-b130104c63d1"), "034821a2-6318-48f0-a0d5-b130104c63d1"},
+		{createRequest("Authorization", "2"), "2"},
+		{createRequest("Cookie", "GWTOKEN=034821a2-6318-48f0-a0d5-b130104c63d1"), "034821a2-6318-48f0-a0d5-b130104c63d1"},
+		{createRequest("AnotherHeader", "034821a2-6318-48f0-a0d5-b130104c63d1"), ""},
+		{doubleAuth, "1f8a367e-9b24-4a9b-a739-7fc539fbebaa"}, // Authorization header over GWTOKEN Cookie value
+		{emptyReq, ""},
+	}
+	for _, row := range tests {
+		authorization, _ := ExtractAuthorization(row.req)
+		if authorization != row.authorization {
+			t.Errorf("Extected request to generate authorization '%s' but was '%s'", row.authorization, authorization)
+		}
+	}
+}
+
+func createRequest(headerKey string, headerValue string) *http.Request {
+	req, _ := http.NewRequest("GET", "/api/test", nil)
+	req.Header.Add(headerKey, headerValue)
+	return req
 }

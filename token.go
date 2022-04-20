@@ -48,7 +48,7 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 }
 
 func (t *TokenTranslator) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	authorization, err := extractAuthorization(req)
+	authorization, err := ExtractAuthorization(req)
 	if err != nil {
 		log.Println("could not extract authorization from request", err)
 	}
@@ -65,13 +65,16 @@ func (t *TokenTranslator) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	t.next.ServeHTTP(rw, req)
 }
 
-func extractAuthorization(req *http.Request) (string, error) {
+func ExtractAuthorization(req *http.Request) (string, error) {
 	var authorization string
 	authorization = req.Header.Get("Authorization")
 	if len(authorization) == 0 {
 		gwTokenCookie, err := req.Cookie("GWTOKEN")
+		if err != nil && err == http.ErrNoCookie {
+			return "", nil
+		}
 		if err != nil {
-			return authorization, err
+			return "", err
 		}
 		if gwTokenCookie != nil {
 			authorization = gwTokenCookie.Value

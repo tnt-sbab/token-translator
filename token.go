@@ -53,7 +53,7 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 func httpClient() http.Client {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.MaxIdleConns = 100
-	transport.MaxConnsPerHost = 100
+	transport.MaxConnsPerHost = 100 // Defaults to only 2, but all connections in this service use the same host
 	transport.MaxIdleConnsPerHost = 100
 
 	client := http.Client{

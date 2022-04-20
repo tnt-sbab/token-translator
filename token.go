@@ -103,7 +103,7 @@ func ExtractAuthorization(req *http.Request) (string, error) {
 
 func fetchUserToken(client http.Client, lookupUrl string, accessToken string) (string, error) {
 	if !IsValidUUID(accessToken) {
-		return "", errors.New("invalid UUID format")
+		return "", errors.New("invalid access token format")
 	}
 	tokenUrl := fmt.Sprintf(lookupUrl, accessToken)
 	res, err := client.Get(tokenUrl)

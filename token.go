@@ -13,6 +13,12 @@ import (
 	"time"
 )
 
+var (
+	ErrEmptyTokenUrl      = errors.New("TokenUrl cannot be empty")
+	ErrInvalidTokenUrl    = errors.New("TokenUrl must contain '%s'")
+	ErrInvalidAccessToken = errors.New("invalid access token format")
+)
+
 type Config struct {
 	TokenUrl string
 }
@@ -37,9 +43,9 @@ func CreateConfig() *Config {
 
 func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
 	if len(config.TokenUrl) == 0 {
-		return nil, errors.New("TokenUrl cannot be empty")
+		return nil, ErrEmptyTokenUrl
 	} else if !strings.Contains(config.TokenUrl, "%s") {
-		return nil, errors.New("TokenUrl must contain '%s'")
+		return nil, ErrInvalidTokenUrl
 	}
 	log.SetOutput(os.Stdout)
 	return &TokenTranslator{
@@ -103,7 +109,7 @@ func ExtractAuthorization(req *http.Request) (string, error) {
 
 func fetchUserToken(client http.Client, lookupUrl string, accessToken string) (string, error) {
 	if !IsValidUUID(accessToken) {
-		return "", errors.New("invalid access token format")
+		return "", ErrInvalidAccessToken
 	}
 	tokenUrl := fmt.Sprintf(lookupUrl, accessToken)
 	res, err := client.Get(tokenUrl)

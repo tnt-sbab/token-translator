@@ -20,7 +20,8 @@ var (
 )
 
 type Config struct {
-	TokenUrl string
+	TokenUrl       string
+	AllowOnlyToken bool
 }
 
 type UserTokenResponse struct {
@@ -29,15 +30,17 @@ type UserTokenResponse struct {
 }
 
 type TokenTranslator struct {
-	name     string
-	next     http.Handler
-	tokenUrl string
-	client   http.Client
+	name           string
+	next           http.Handler
+	tokenUrl       string
+	allowOnlyToken bool
+	client         http.Client
 }
 
 func CreateConfig() *Config {
 	return &Config{
-		TokenUrl: "",
+		TokenUrl:       "",
+		AllowOnlyToken: false, // If auth info is present, it must be a 36 char UUID access token
 	}
 }
 
@@ -49,10 +52,11 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 	}
 	log.SetOutput(os.Stdout)
 	return &TokenTranslator{
-		name:     name,
-		next:     next,
-		tokenUrl: config.TokenUrl,
-		client:   httpClient(),
+		name:           name,
+		next:           next,
+		tokenUrl:       config.TokenUrl,
+		allowOnlyToken: config.AllowOnlyToken,
+		client:         httpClient(),
 	}, nil
 }
 
@@ -83,6 +87,10 @@ func (t *TokenTranslator) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			return
 		}
 		req.Header.Set("Authorization", "Bearer "+jwt)
+	} else if t.allowOnlyToken && len(authorization) > 0 {
+		log.Println("access token must be a uuid")
+		http.Error(rw, "Not allowed", http.StatusForbidden)
+		return
 	}
 	t.next.ServeHTTP(rw, req)
 }

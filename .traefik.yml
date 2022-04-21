@@ -4,3 +4,4 @@ type: middleware
 import: github.com/tnt-sbab/token-translator
 testData:
   TokenUrl: 'https://k8sproxy.sys.sbab.se/partner-auth-service/v1/auth/usertoken?access_token=%s'
+  AllowOnlyToken: false

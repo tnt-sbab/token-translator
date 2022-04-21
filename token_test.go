@@ -57,7 +57,7 @@ func TestParseTokenResponse(t *testing.T) {
 		if jwt != row.jwt {
 			t.Errorf("JSON %s should be parsed to jwt '%s' but was '%s'", row.json, row.jwt, jwt)
 		}
-		if err != nil && err.Error() != row.err {
+		if (err != nil && err.Error() != row.err) || (err == nil && row.err != "") {
 			t.Errorf("Expected JSON '%s' to generate error '%v' but was '%v'", row.json, row.err, err)
 		}
 	}
